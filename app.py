@@ -34,6 +34,9 @@ def stitch():
 
     data = request.get_json(force=True)
     clip_urls = data.get("clip_urls", [])
+    # Optional: Gemini/Veo video URIs require an API key to download.
+    # Pass it here and it gets appended as ?key=... on each download.
+    gemini_api_key = data.get("gemini_api_key")
     if not clip_urls or len(clip_urls) < 1:
         return jsonify({"error": "clip_urls required"}), 400
 
@@ -43,7 +46,11 @@ def stitch():
         local_paths = []
         for i, url in enumerate(clip_urls):
             local_path = os.path.join(tmpdir, f"clip_{i}.mp4")
-            r = requests.get(url, stream=True, timeout=120)
+            download_url = url
+            if gemini_api_key:
+                sep = "&" if "?" in url else "?"
+                download_url = f"{url}{sep}key={gemini_api_key}"
+            r = requests.get(download_url, stream=True, timeout=120)
             r.raise_for_status()
             with open(local_path, "wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):
